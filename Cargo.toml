@@ -5,3 +5,8 @@ authors = ["Shanavas M <shanavas.m2@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+argparse = "0.2.2"
+md5 = "0.6.1"
+reqwest = "0.9.15"
+rocksdb = "0.12.1"
+tiny_http = "0.6.2"
