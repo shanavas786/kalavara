@@ -27,11 +27,9 @@ fn store_handler(db: &DB, volumes: &Mutex<Vec<String>>, req: &mut Request) -> KR
             match db.get(path.as_bytes()) {
                 Ok(Some(volume)) => {
                     let volume_url = volume.to_utf8().unwrap();
-                    println!("key found on volume {}", volume_url);
                     // FIXME redirect to volume server
                     Response::from_string("").with_status_code(302).with_header(
-                        Header::from_str(&format!("Location:{}{}", volume_url, path))
-                            .unwrap(),
+                        Header::from_str(&format!("Location:{}{}", volume_url, path)).unwrap(),
                     )
                 }
                 Ok(None) => Response::from_string("Key not found").with_status_code(404),
@@ -64,9 +62,26 @@ fn store_handler(db: &DB, volumes: &Mutex<Vec<String>>, req: &mut Request) -> KR
                 }
             }
         }
+        &Method::Delete => {
+            match db.get(path.as_bytes()) {
+                Ok(Some(volume)) => {
+                    let volume_url = volume.to_utf8().unwrap();
+                    println!("key found on volume {}", volume_url);
+
+                    // delete it from db
+                    let _ = db.delete(path.as_bytes()).unwrap();
+
+                    Response::from_string("").with_status_code(302).with_header(
+                        Header::from_str(&format!("Location:{}{}", volume_url, path)).unwrap(),
+                    )
+                }
+                Ok(None) => Response::from_string("Key not found").with_status_code(404),
+                Err(_) => Response::from_string("Server Error").with_status_code(500),
+            }
+        }
         _ => {
-            // FIXME
-            Response::from_string("non get")
+            Response::from_string("Method not allowed")
+                .with_status_code(405)
         }
     }
 }
