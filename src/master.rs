@@ -87,16 +87,14 @@ fn req_handler(
     }
 }
 
-pub fn start(port: u16, data_dir: &str) {
+pub fn start(port: u16, data_dir: &str, volumes: Vec<String>) {
     let db = match DB::open_default(data_dir) {
         Ok(db) => Arc::new(db),
         Err(e) => panic!("failed to open database: {:?}", e),
     };
 
     // TODO use RWLOck
-    // FIXME remove default volume server
-    let volumes: Arc<Mutex<Vec<String>>> =
-        Arc::new(Mutex::new(vec!["http://localhost:7000".to_owned()]));
+    let volumes: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(volumes));
     let addr: SocketAddr = ([0, 0, 0, 0], port).into();
 
     let server = Arc::new(tiny_http::Server::http(addr).unwrap());
