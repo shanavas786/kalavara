@@ -9,6 +9,13 @@ use std::thread;
 
 type KResponse = Response<Cursor<Vec<u8>>>;
 
+macro_rules! redirect {
+    ($url:expr) => {
+        Response::from_string("")
+            .with_status_code(307)
+            .with_header(Header::from_str($url).unwrap())
+    };
+}
 
 fn admin_handle(volumes: &Mutex<Vec<String>>, req: &mut Request) -> KResponse {
     // FIXME
@@ -23,18 +30,14 @@ fn store_handler(db: &DB, volumes: &Mutex<Vec<String>>, req: &mut Request) -> KR
     let _ = req.as_reader().read_to_string(&mut body);
 
     match req.method() {
-        &Method::Get => {
-            match db.get(path.as_bytes()) {
-                Ok(Some(volume)) => {
-                    let volume_url = volume.to_utf8().unwrap();
-                    Response::from_string("").with_status_code(302).with_header(
-                        Header::from_str(&format!("Location:{}{}", volume_url, path)).unwrap(),
-                    )
-                }
-                Ok(None) => Response::from_string("Key not found").with_status_code(404),
-                Err(_) => Response::from_string("Server Error").with_status_code(500),
+        &Method::Get => match db.get(path.as_bytes()) {
+            Ok(Some(volume)) => {
+                let volume_url = volume.to_utf8().unwrap();
+                redirect!(&format!("Location:{}{}", volume_url, path))
             }
-        }
+            Ok(None) => Response::from_string("Key not found").with_status_code(404),
+            Err(_) => Response::from_string("Server Error").with_status_code(500),
+        },
         &Method::Post => {
             let vlms = volumes.lock().unwrap();
 
@@ -45,9 +48,7 @@ fn store_handler(db: &DB, volumes: &Mutex<Vec<String>>, req: &mut Request) -> KR
                 let volume = vlms.get(0).unwrap();
 
                 match db.put(path.as_bytes(), volume) {
-                    Ok(_) => Response::from_string("").with_status_code(307).with_header(
-                        Header::from_str(&format!("Location:{}{}", volume, path)).unwrap(),
-                    ),
+                    Ok(_) => redirect!(&format!("Location:{}{}", volume, path)),
                     Err(_) => Response::from_string("Server Error").with_status_code(500),
                 }
             }
@@ -60,10 +61,7 @@ fn store_handler(db: &DB, volumes: &Mutex<Vec<String>>, req: &mut Request) -> KR
 
                     // delete it from db
                     let _ = db.delete(path.as_bytes()).unwrap();
-
-                    Response::from_string("").with_status_code(302).with_header(
-                        Header::from_str(&format!("Location:{}{}", volume_url, path)).unwrap(),
-                    )
+                    redirect!(&format!("Location:{}{}", volume_url, path))
                 }
                 Ok(None) => Response::from_string("Key not found").with_status_code(404),
                 Err(_) => Response::from_string("Server Error").with_status_code(500),
