@@ -5,31 +5,42 @@ A distributed persistent key value store which speaks http. Inspired by
 
 
 # master server
-    Master server stores index (key, url of volume server where the value is
-    stored) in rocksdb. Requests are redirected to curresponding volume server
-    after metadata is updated.
 
-    to start the server, run
+Master server stores index (key, url of volume server where the value is
+stored) in rocksdb. Requests are redirected to curresponding volume server
+after metadata is updated.
 
-    ```sh
-        master -port 6000 -d /tmp/kalavadb -v http://volume1:6001 http://volume2:6002
-    ```
+to start the server, run
+
+```sh
+master -port 6000 -d /tmp/kalavadb -v http://volume1:6001 http://volume2:6002
+```
 
 ## Usage
-    1. insert a key-value
-       ```sh
-       curl -XPUT -L -d value http://localhost:6000/store/key
 
-       ```
+1. insert a key-value
 
-    2. retrive value
-       ```sh
-       curl -XGET -L http://localhost:6000/store/key
+```sh
+curl -XPUT -L -d value http://localhost:6000/store/key
+```
 
-       ```
+2. retrive value
 
-    3. delete a key
-       ```sh
-       curl -XDELETE -L http://localhost:6000/store/key
+```sh
+curl -XGET -L http://localhost:6000/store/key
+```
 
-       ```
+3. delete a key
+
+```sh
+curl -XDELETE -L http://localhost:6000/store/key
+```
+
+# TODO
+ - [ ] https
+ - [ ] add volume servers on the fly
+ - [ ] intelligent volume server selection
+ - [ ] support key expiry
+ - [ ] support authentication
+ - [ ] volume server heartbeat
+ - [ ] access/error logs
