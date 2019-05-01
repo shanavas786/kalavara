@@ -1,4 +1,3 @@
-use reqwest::Client;
 use rocksdb::DB;
 use tiny_http::{Header, Method, Request, Response};
 
@@ -9,6 +8,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 type KResponse = Response<Cursor<Vec<u8>>>;
+
 
 fn admin_handle(volumes: &Mutex<Vec<String>>, req: &mut Request) -> KResponse {
     // FIXME
@@ -27,7 +27,6 @@ fn store_handler(db: &DB, volumes: &Mutex<Vec<String>>, req: &mut Request) -> KR
             match db.get(path.as_bytes()) {
                 Ok(Some(volume)) => {
                     let volume_url = volume.to_utf8().unwrap();
-                    // FIXME redirect to volume server
                     Response::from_string("").with_status_code(302).with_header(
                         Header::from_str(&format!("Location:{}{}", volume_url, path)).unwrap(),
                     )
@@ -45,19 +44,10 @@ fn store_handler(db: &DB, volumes: &Mutex<Vec<String>>, req: &mut Request) -> KR
                 // FIXME get random nubmer
                 let volume = vlms.get(0).unwrap();
 
-                // post to volume server
-                let request_url = format!("{}/{}", volume, path);
-                let response = Client::new()
-                    .post(&request_url)
-                    .body(body.into_bytes())
-                    .send();
-
-                if response.is_err() {
-                    return Response::from_string("Server Error").with_status_code(503);
-                }
-
                 match db.put(path.as_bytes(), volume) {
-                    Ok(_) => Response::from_string("Key inserted"),
+                    Ok(_) => Response::from_string("").with_status_code(307).with_header(
+                        Header::from_str(&format!("Location:{}{}", volume, path)).unwrap(),
+                    ),
                     Err(_) => Response::from_string("Server Error").with_status_code(500),
                 }
             }
@@ -79,10 +69,7 @@ fn store_handler(db: &DB, volumes: &Mutex<Vec<String>>, req: &mut Request) -> KR
                 Err(_) => Response::from_string("Server Error").with_status_code(500),
             }
         }
-        _ => {
-            Response::from_string("Method not allowed")
-                .with_status_code(405)
-        }
+        _ => Response::from_string("Method not allowed").with_status_code(405),
     }
 }
 
