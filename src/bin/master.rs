@@ -22,6 +22,8 @@ fn main() {
         cli.parse_args_or_exit();
     }
 
+    // TODO remote trailing slashes from volume server urls
+
     println!(
         "port: {}, data_dir: {}, volumes: {:?}",
         port, data_dir, volumes
