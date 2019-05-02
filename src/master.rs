@@ -1,13 +1,10 @@
 use rocksdb::DB;
 use tiny_http::{Header, Method, Request, Response};
 
-use std::io::Cursor;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::thread;
-
-type KResponse = Response<Cursor<Vec<u8>>>;
 
 macro_rules! redirect {
     ($url:expr) => {
@@ -17,39 +14,41 @@ macro_rules! redirect {
     };
 }
 
-fn admin_handle(volumes: &Mutex<Vec<String>>, req: &mut Request) -> KResponse {
+fn admin_handle(volumes: &Mutex<Vec<String>>, req: Request) {
     // FIXME
-    Response::from_string("admin")
+    let _ = req.respond(Response::from_string("admin"));
 }
 
-fn store_handler(db: &DB, volumes: &Mutex<Vec<String>>, req: &mut Request) -> KResponse {
+fn store_handler(db: &DB, volumes: &Mutex<Vec<String>>, mut req: Request) {
     // TODO remove query params
     let path = String::from(req.url());
 
     let mut body = String::new();
     let _ = req.as_reader().read_to_string(&mut body);
 
-    match req.method() {
+    let _ = match req.method() {
         &Method::Get => match db.get(path.as_bytes()) {
             Ok(Some(volume)) => {
                 let volume_url = volume.to_utf8().unwrap();
-                redirect!(&format!("Location:{}{}", volume_url, path))
+                req.respond(redirect!(&format!("Location:{}{}", volume_url, path)))
             }
-            Ok(None) => Response::from_string("Key not found").with_status_code(404),
-            Err(_) => Response::from_string("Server Error").with_status_code(500),
+            Ok(None) => req.respond(Response::from_string("Key not found").with_status_code(404)),
+            Err(_) => req.respond(Response::from_string("Server Error").with_status_code(500)),
         },
         &Method::Post => {
             let vlms = volumes.lock().unwrap();
 
             if vlms.is_empty() {
-                Response::from_string("No volume servers found").with_status_code(503)
+                req.respond(Response::from_string("No volume servers found").with_status_code(503))
             } else {
                 // FIXME get random nubmer
                 let volume = vlms.get(0).unwrap();
 
                 match db.put(path.as_bytes(), volume) {
-                    Ok(_) => redirect!(&format!("Location:{}{}", volume, path)),
-                    Err(_) => Response::from_string("Server Error").with_status_code(500),
+                    Ok(_) => req.respond(redirect!(&format!("Location:{}{}", volume, path))),
+                    Err(_) => {
+                        req.respond(Response::from_string("Server Error").with_status_code(500))
+                    }
                 }
             }
         }
@@ -61,29 +60,27 @@ fn store_handler(db: &DB, volumes: &Mutex<Vec<String>>, req: &mut Request) -> KR
 
                     // delete it from db
                     let _ = db.delete(path.as_bytes()).unwrap();
-                    redirect!(&format!("Location:{}{}", volume_url, path))
+                    req.respond(redirect!(&format!("Location:{}{}", volume_url, path)))
                 }
-                Ok(None) => Response::from_string("Key not found").with_status_code(404),
-                Err(_) => Response::from_string("Server Error").with_status_code(500),
+                Ok(None) => {
+                    req.respond(Response::from_string("Key not found").with_status_code(404))
+                }
+                Err(_) => req.respond(Response::from_string("Server Error").with_status_code(500)),
             }
         }
-        _ => Response::from_string("Method not allowed").with_status_code(405),
-    }
+        _ => req.respond(Response::from_string("Method not allowed").with_status_code(405)),
+    };
 }
 
-fn req_handler(
-    db: &DB,
-    volumes: &Mutex<Vec<String>>,
-    req: &mut Request,
-) -> Response<Cursor<Vec<u8>>> {
+fn req_handler(db: &DB, volumes: &Mutex<Vec<String>>, req: Request) {
     let path = String::from(req.url());
 
     if path.starts_with("/store/") {
-        store_handler(db, volumes, req)
+        store_handler(db, volumes, req);
     } else if path.starts_with("/admin/") {
-        admin_handle(volumes, req)
+        admin_handle(volumes, req);
     } else {
-        Response::from_string("Invalid Path").with_status_code(404)
+        let _ = req.respond(Response::from_string("Invalid Path").with_status_code(404));
     }
 }
 
@@ -107,9 +104,8 @@ pub fn start(port: u16, data_dir: &str, volumes: Vec<String>) {
         let volumes = volumes.clone();
 
         handles.push(thread::spawn(move || {
-            for mut rq in server.incoming_requests() {
-                let response = req_handler(&db, &volumes, &mut rq);
-                let _ = rq.respond(response);
+            for rq in server.incoming_requests() {
+                let _ = req_handler(&db, &volumes, rq);
             }
         }));
     }
