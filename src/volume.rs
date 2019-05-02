@@ -1,7 +1,9 @@
 use md5::compute as compute_md5;
+use tempfile::NamedTempFile;
 use tiny_http::{Method, Request, Response};
 
 use std::fs::{create_dir_all, File};
+use std::io::Write;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -17,16 +19,36 @@ fn req_handler(data_dir: &String, mut req: Request) {
     dest_path.push(path.get(1..2).unwrap());
     dest_path.push(path.get(2..).unwrap());
 
-    let _ = match req.method() {
+    match req.method() {
         &Method::Get => {
             let file = File::open(dest_path);
-            if file.is_ok() {
-                req.respond(Response::from_file(file.unwrap()))
-            } else {
-                req.respond(Response::from_string("Server Error").with_status_code(500))
-            }
+
+            let _ = match file {
+                Ok(file) => req.respond(Response::from_file(file)),
+                Err(_) => req.respond(Response::from_string("Server Error").with_status_code(500)),
+            };
         }
-        _ => req.respond(Response::from_string("not implemented").with_status_code(200)),
+        &Method::Post => {
+            let tmpdir = Path::new(data_dir).join("tmp");
+
+            let _ = match NamedTempFile::new_in(tmpdir) {
+                Ok(mut tmpfile) => {
+                    match (tmpfile.write(body.as_bytes()), tmpfile.persist(dest_path)) {
+                        (Ok(_), Ok(_)) => {
+                            req.respond(Response::from_string("Inserted").with_status_code(201))
+                        }
+                        _ => req.respond(
+                            Response::from_string("Unable to create file").with_status_code(500),
+                        ),
+                    }
+                }
+                Err(_) => req
+                    .respond(Response::from_string("Unable to create file").with_status_code(500)),
+            };
+        }
+        _ => {
+            let _ = req.respond(Response::from_string("not implemented").with_status_code(200));
+        }
     };
 }
 
@@ -35,14 +57,12 @@ pub fn start(port: u16, data_dir: String) {
     let server = Arc::new(tiny_http::Server::http(addr).unwrap());
     let mut handles = Vec::new();
 
-    // create data directory files are initially created in tmp dir then moved to corresponding path
+    // create data directory. files are initially created in tmp dir then moved to corresponding path
     if create_dir_all(Path::new(&data_dir).join("tmp")).is_err() {
         panic!("Could not create data dir. exiting\n");
     }
 
     let data_dir = Arc::new(data_dir);
-
-    // ceate data dir
 
     // TODO: defult to numcpus
     for _ in 0..4 {
