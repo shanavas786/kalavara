@@ -1,38 +1,48 @@
 use md5::compute as compute_md5;
 use tiny_http::{Method, Request, Response};
 
-use std::io::Cursor;
+use std::fs::{create_dir_all, File};
 use std::net::SocketAddr;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::thread;
 
-fn req_handler(data_dir: &String, req: &mut Request) -> Response<Cursor<Vec<u8>>> {
+fn req_handler(data_dir: &String, mut req: Request) {
     let path = format!("{:x}", compute_md5(req.url().as_bytes()));
     let mut body = String::new();
     let _ = req.as_reader().read_to_string(&mut body);
 
-    let dest_dir = format!(
-        "{}/{}/{}",
-        data_dir,
-        path.get(0..1).unwrap(),
-        path.get(1..2).unwrap()
-    );
+    let mut dest_path = PathBuf::from(data_dir);
+    dest_path.push(path.get(0..1).unwrap());
+    dest_path.push(path.get(1..2).unwrap());
+    dest_path.push(path.get(2..).unwrap());
 
-    let filename = path.get(2..).unwrap();
-
-    println!("{}/{}", dest_dir, filename);
-
-    match req.method() {
-           &Method::Get => unimplemented!(),
-        _ => Response::from_string("volume server").with_status_code(200),
-    }
+    let _ = match req.method() {
+        &Method::Get => {
+            let file = File::open(dest_path);
+            if file.is_ok() {
+                req.respond(Response::from_file(file.unwrap()))
+            } else {
+                req.respond(Response::from_string("Server Error").with_status_code(500))
+            }
+        }
+        _ => req.respond(Response::from_string("not implemented").with_status_code(200)),
+    };
 }
 
 pub fn start(port: u16, data_dir: String) {
     let addr: SocketAddr = ([0, 0, 0, 0], port).into();
     let server = Arc::new(tiny_http::Server::http(addr).unwrap());
     let mut handles = Vec::new();
+
+    // create data directory files are initially created in tmp dir then moved to corresponding path
+    if create_dir_all(Path::new(&data_dir).join("tmp")).is_err() {
+        panic!("Could not create data dir. exiting\n");
+    }
+
     let data_dir = Arc::new(data_dir);
+
+    // ceate data dir
 
     // TODO: defult to numcpus
     for _ in 0..4 {
@@ -40,9 +50,8 @@ pub fn start(port: u16, data_dir: String) {
         let data_dir = data_dir.clone();
 
         handles.push(thread::spawn(move || {
-            for mut rq in server.incoming_requests() {
-                let response = req_handler(&data_dir, &mut rq);
-                let _ = rq.respond(response);
+            for rq in server.incoming_requests() {
+                req_handler(&data_dir, rq);
             }
         }));
     }
