@@ -14,7 +14,7 @@ macro_rules! redirect {
     };
 }
 
-fn admin_handle(volumes: &Mutex<Vec<String>>, req: Request) {
+fn admin_handle(_volumes: &Mutex<Vec<String>>, req: Request) {
     // FIXME
     let _ = req.respond(Response::from_string("admin"));
 }
