@@ -1,6 +1,6 @@
 # Kalavara
 
-A distributed persistent key value store which speaks http. Inspired by
+A distributed persistent key value store that speaks http. Inspired by
 [minkeyvalue](https://github.com/geohot/minikeyvalue).
 
 
@@ -48,3 +48,17 @@ curl -XGET -L http://localhost:6000/store/key
 ```sh
 curl -XDELETE -L http://localhost:6000/store/key
 ```
+
+# License
+
+<p xmlns:dct="http://purl.org/dc/terms/"
+  xmlns:vcard="http://www.w3.org/2001/vcard-rdf/3.0#"> <a rel="license"
+  href="http://creativecommons.org/publicdomain/zero/1.0/"> <img
+  src="http://i.creativecommons.org/p/zero/1.0/88x31.png" style="border-style:
+  none;" alt="CC0" /> </a> <br />
+
+To the extent possible under law, the author(s) have dedicated all copyright
+related and neighboring rights to this software to the public domain worldwide.
+This software is distributed without any warranty.
+
+</p>
