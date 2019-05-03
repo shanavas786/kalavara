@@ -13,7 +13,20 @@ after metadata is updated.
 to start the server, run
 
 ```sh
-master -port 6000 -d /tmp/kalavadb -v http://volume1:6001 http://volume2:6002
+master -p 6000 -d /tmp/kalavadb -v http://volume1:6001 http://volume2:6002
+```
+
+# volume server
+
+Volume server stores values in file system. For atomicity temporary files are
+first created in `destdir/tmp` directory and then moved to destination path.
+For this approach to work, `destdir/tmp` and destination path should be in same
+file system
+
+to start the volume server, run
+
+```sh
+master -p 7000 -d /tmp/kalavarastore
 ```
 
 ## Usage
@@ -35,12 +48,3 @@ curl -XGET -L http://localhost:6000/store/key
 ```sh
 curl -XDELETE -L http://localhost:6000/store/key
 ```
-
-# TODO
- - [ ] https
- - [ ] add volume servers on the fly
- - [ ] intelligent volume server selection
- - [ ] support key expiry
- - [ ] support authentication
- - [ ] volume server heartbeat
- - [ ] access/error logs
