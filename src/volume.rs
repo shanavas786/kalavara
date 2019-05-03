@@ -2,7 +2,7 @@ use md5::compute as compute_md5;
 use tempfile::NamedTempFile;
 use tiny_http::{Method, Request, Response};
 
-use std::fs::{create_dir_all, File};
+use std::fs::{create_dir_all, remove_file, File};
 use std::io::{Error, ErrorKind, Write};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
@@ -19,25 +19,28 @@ fn req_handler(data_dir: &String, mut req: Request) {
     dest_path.push(path.get(1..2).unwrap());
     dest_path.push(path.get(2..).unwrap());
 
-    match req.method() {
+    let _ = match req.method() {
         &Method::Get => {
             let file = File::open(dest_path);
 
-            let _ = match file {
+            match file {
                 Ok(file) => req.respond(Response::from_file(file)),
                 Err(_) => req.respond(Response::from_string("Server Error").with_status_code(500)),
-            };
+            }
         }
         &Method::Post => {
             let tmpdir = Path::new(data_dir).join("tmp");
 
-            let _ = match NamedTempFile::new_in(tmpdir) {
+            match NamedTempFile::new_in(tmpdir) {
                 Ok(mut tmpfile) => {
                     match tmpfile
                         .write(body.as_bytes())
                         .and(create_dir_all(dest_path.parent().unwrap()))
-                        .and(tmpfile.persist(dest_path).map_err(|_| Error::new(ErrorKind::Other, "")))
-                    {
+                        .and(
+                            tmpfile
+                                .persist(dest_path)
+                                .map_err(|_| Error::new(ErrorKind::Other, "")),
+                        ) {
                         Ok(_) => {
                             req.respond(Response::from_string("Inserted").with_status_code(201))
                         }
@@ -48,10 +51,16 @@ fn req_handler(data_dir: &String, mut req: Request) {
                 }
                 Err(_) => req
                     .respond(Response::from_string("Unable to create file").with_status_code(500)),
-            };
+            }
         }
+        &Method::Delete => match remove_file(dest_path) {
+            Ok(_) => req.respond(Response::from_string("Delete").with_status_code(204)),
+            Err(_) => {
+                req.respond(Response::from_string("Unable to delete file").with_status_code(500))
+            }
+        },
         _ => {
-            let _ = req.respond(Response::from_string("not implemented").with_status_code(200));
+            req.respond(Response::from_string("not implemented").with_status_code(200))
         }
     };
 }
