@@ -3,7 +3,7 @@ use tempfile::NamedTempFile;
 use tiny_http::{Method, Request, Response};
 
 use std::fs::{create_dir_all, File};
-use std::io::Write;
+use std::io::{Error, ErrorKind, Write};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -33,8 +33,12 @@ fn req_handler(data_dir: &String, mut req: Request) {
 
             let _ = match NamedTempFile::new_in(tmpdir) {
                 Ok(mut tmpfile) => {
-                    match (tmpfile.write(body.as_bytes()), tmpfile.persist(dest_path)) {
-                        (Ok(_), Ok(_)) => {
+                    match tmpfile
+                        .write(body.as_bytes())
+                        .and(create_dir_all(dest_path.parent().unwrap()))
+                        .and(tmpfile.persist(dest_path).map_err(|_| Error::new(ErrorKind::Other, "")))
+                    {
+                        Ok(_) => {
                             req.respond(Response::from_string("Inserted").with_status_code(201))
                         }
                         _ => req.respond(
