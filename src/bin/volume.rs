@@ -26,7 +26,7 @@ fn main() {
     }
 
     // remove trailing slash
-    if data_dir.ends_with("/") {
+    if data_dir.ends_with('/') {
         data_dir.pop();
     }
 

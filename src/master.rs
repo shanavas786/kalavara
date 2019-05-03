@@ -26,8 +26,8 @@ fn store_handler(db: &DB, volumes: &Mutex<Vec<String>>, mut req: Request) {
     let mut body = String::new();
     let _ = req.as_reader().read_to_string(&mut body);
 
-    let _ = match req.method() {
-        &Method::Get => match db.get(path.as_bytes()) {
+    let _ = match *req.method() {
+        Method::Get => match db.get(path.as_bytes()) {
             Ok(Some(volume)) => {
                 let volume_url = volume.to_utf8().unwrap();
                 req.respond(redirect!(&format!("Location:{}{}", volume_url, path)))
@@ -35,7 +35,7 @@ fn store_handler(db: &DB, volumes: &Mutex<Vec<String>>, mut req: Request) {
             Ok(None) => req.respond(Response::from_string("Key not found").with_status_code(404)),
             Err(_) => req.respond(Response::from_string("Server Error").with_status_code(500)),
         },
-        &Method::Post => {
+        Method::Post => {
             let vlms = volumes.lock().unwrap();
 
             if vlms.is_empty() {
@@ -52,14 +52,14 @@ fn store_handler(db: &DB, volumes: &Mutex<Vec<String>>, mut req: Request) {
                 }
             }
         }
-        &Method::Delete => {
+        Method::Delete => {
             match db.get(path.as_bytes()) {
                 Ok(Some(volume)) => {
                     let volume_url = volume.to_utf8().unwrap();
                     println!("key found on volume {}", volume_url);
 
                     // delete it from db
-                    let _ = db.delete(path.as_bytes()).unwrap();
+                    db.delete(path.as_bytes()).unwrap();
                     req.respond(redirect!(&format!("Location:{}{}", volume_url, path)))
                 }
                 Ok(None) => {
@@ -105,7 +105,7 @@ pub fn start(port: u16, data_dir: &str, volumes: Vec<String>) {
 
         handles.push(thread::spawn(move || {
             for rq in server.incoming_requests() {
-                let _ = req_handler(&db, &volumes, rq);
+                req_handler(&db, &volumes, rq);
             }
         }));
     }

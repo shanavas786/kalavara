@@ -10,3 +10,6 @@ md5 = "0.6.1"
 rocksdb = "0.12.1"
 tempfile = "3.0.7"
 tiny_http = "0.6.2"
+
+[build-dependencies]
+clippy = { version = "*", optional = true }
