@@ -28,7 +28,7 @@ fn req_handler(data_dir: &str, mut req: Request) {
                 Err(_) => req.respond(Response::from_string("Server Error").with_status_code(500)),
             }
         }
-        Method::Post => {
+        Method::Post | Method::Put => {
             let tmpdir = Path::new(data_dir).join("tmp");
 
             match NamedTempFile::new_in(tmpdir) {

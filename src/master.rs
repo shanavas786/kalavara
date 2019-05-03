@@ -35,7 +35,7 @@ fn store_handler(db: &DB, volumes: &Mutex<Vec<String>>, mut req: Request) {
             Ok(None) => req.respond(Response::from_string("Key not found").with_status_code(404)),
             Err(_) => req.respond(Response::from_string("Server Error").with_status_code(500)),
         },
-        Method::Post => {
+        Method::Post | Method::Put => {
             let vlms = volumes.lock().unwrap();
 
             if vlms.is_empty() {
