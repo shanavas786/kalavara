@@ -59,9 +59,7 @@ fn req_handler(data_dir: &str, mut req: Request) {
                 req.respond(Response::from_string("Unable to delete file").with_status_code(500))
             }
         },
-        _ => {
-            req.respond(Response::from_string("not implemented").with_status_code(200))
-        }
+        _ => req.respond(Response::from_string("not implemented").with_status_code(200)),
     };
 }
 

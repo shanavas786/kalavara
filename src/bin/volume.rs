@@ -17,8 +17,11 @@ fn main() {
         cli.refer(&mut data_dir)
             .add_option(&["-d", "--data_dir"], Store, "Data directory");
 
-        cli.refer(&mut threads)
-            .add_option(&["-t", "--threads"], Store, "Number of threads, defaults to number of cpu cores");
+        cli.refer(&mut threads).add_option(
+            &["-t", "--threads"],
+            Store,
+            "Number of threads, defaults to number of cpu cores",
+        );
 
         // cli.refer(&mut master).add_option(
         //     &["-m", "--master"],
@@ -34,7 +37,10 @@ fn main() {
         data_dir.pop();
     }
 
-    println!("port: {}, data_dir: {}, threads: {}", port, data_dir, threads);
+    println!(
+        "port: {}, data_dir: {}, threads: {}",
+        port, data_dir, threads
+    );
 
     start(port, data_dir, threads);
 }

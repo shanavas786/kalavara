@@ -1,7 +1,9 @@
-use rand::{thread_rng, Rng};
+use rand::seq::IteratorRandom;
+use rand::thread_rng;
 use rocksdb::DB;
 use tiny_http::{Header, Method, Request, Response};
 
+use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
@@ -15,12 +17,12 @@ macro_rules! redirect {
     };
 }
 
-fn admin_handle(_volumes: &RwLock<Vec<String>>, req: Request) {
+fn admin_handle(_volumes: &RwLock<HashSet<String>>, req: Request) {
     // FIXME
     let _ = req.respond(Response::from_string("admin"));
 }
 
-fn store_handler(db: &DB, volumes: &RwLock<Vec<String>>, mut req: Request) {
+fn store_handler(db: &DB, volumes: &RwLock<HashSet<String>>, mut req: Request) {
     // TODO remove query params
     let path = String::from(req.url());
 
@@ -43,11 +45,15 @@ fn store_handler(db: &DB, volumes: &RwLock<Vec<String>>, mut req: Request) {
                 req.respond(Response::from_string("No volume servers found").with_status_code(503))
             } else {
                 let mut rng = thread_rng();
-                let n: usize = rng.gen_range(0, vlms.len());
-                let volume = vlms.get(n).unwrap();
+                let mut volume = None;
+                while volume.is_none() {
+                    volume = vlms.iter().choose(&mut rng);
+                }
 
-                match db.put(path.as_bytes(), volume) {
-                    Ok(_) => req.respond(redirect!(&format!("Location:{}{}", volume, path))),
+                match db.put(path.as_bytes(), volume.unwrap()) {
+                    Ok(_) => {
+                        req.respond(redirect!(&format!("Location:{}{}", volume.unwrap(), path)))
+                    }
                     Err(_) => {
                         req.respond(Response::from_string("Server Error").with_status_code(500))
                     }
@@ -74,7 +80,7 @@ fn store_handler(db: &DB, volumes: &RwLock<Vec<String>>, mut req: Request) {
     };
 }
 
-fn req_handler(db: &DB, volumes: &RwLock<Vec<String>>, req: Request) {
+fn req_handler(db: &DB, volumes: &RwLock<HashSet<String>>, req: Request) {
     let path = String::from(req.url());
 
     if path.starts_with("/store/") {
@@ -92,8 +98,8 @@ pub fn start(port: u16, data_dir: &str, threads: u16, volumes: Vec<String>) {
         Err(e) => panic!("failed to open database: {:?}", e),
     };
 
-    // TODO use RWLOck
-    let volumes: Arc<RwLock<Vec<String>>> = Arc::new(RwLock::new(volumes));
+    let volumes: Arc<RwLock<HashSet<String>>> =
+        Arc::new(RwLock::new(volumes.into_iter().collect()));
     let addr: SocketAddr = ([0, 0, 0, 0], port).into();
 
     let server = Arc::new(tiny_http::Server::http(addr).unwrap());
