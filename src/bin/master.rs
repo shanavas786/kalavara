@@ -17,8 +17,11 @@ fn main() {
         cli.refer(&mut data_dir)
             .add_option(&["-d", "--data_dir"], Store, "Database directory");
 
-        cli.refer(&mut threads)
-            .add_option(&["-t", "--threads"], Store, "Number of threads, defaults to number of cpu cores");
+        cli.refer(&mut threads).add_option(
+            &["-t", "--threads"],
+            Store,
+            "Number of threads, defaults to number of cpu cores",
+        );
 
         cli.refer(&mut volumes)
             .add_option(&["-v", "--volumes"], List, "Volumes");
@@ -26,7 +29,12 @@ fn main() {
         cli.parse_args_or_exit();
     }
 
-    // TODO remote trailing slashes from volume server urls
+    // remote trailing slashes from volume server urls
+    for volume in volumes.iter_mut() {
+        if volume.ends_with('/') {
+            volume.pop();
+        }
+    }
 
     println!(
         "port: {}, data_dir: {}, threads: {}, volumes: {:?}",
