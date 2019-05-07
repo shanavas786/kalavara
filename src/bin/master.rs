@@ -5,6 +5,7 @@ fn main() {
     let mut port: u16 = 6000;
     let mut data_dir = "/tmp/kalavaradb".to_string();
     let mut volumes: Vec<String> = Vec::new();
+    let mut threads = num_cpus::get() as u16;
 
     {
         // this block limits scope of borrows by ap.refer() method
@@ -16,6 +17,9 @@ fn main() {
         cli.refer(&mut data_dir)
             .add_option(&["-d", "--data_dir"], Store, "Database directory");
 
+        cli.refer(&mut threads)
+            .add_option(&["-t", "--threads"], Store, "Number of threads, defaults to number of cpu cores");
+
         cli.refer(&mut volumes)
             .add_option(&["-v", "--volumes"], List, "Volumes");
 
@@ -25,9 +29,9 @@ fn main() {
     // TODO remote trailing slashes from volume server urls
 
     println!(
-        "port: {}, data_dir: {}, volumes: {:?}",
-        port, data_dir, volumes
+        "port: {}, data_dir: {}, threads: {}, volumes: {:?}",
+        port, data_dir, threads, volumes
     );
 
-    master::start(port, &data_dir, volumes);
+    master::start(port, &data_dir, threads, volumes);
 }

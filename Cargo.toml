@@ -7,6 +7,7 @@ edition = "2018"
 [dependencies]
 argparse = "0.2.2"
 md5 = "0.6.1"
+num_cpus = "1.0"
 rand = "0.6"
 rocksdb = "0.12.1"
 tempfile = "3.0.7"

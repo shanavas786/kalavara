@@ -86,7 +86,7 @@ fn req_handler(db: &DB, volumes: &Mutex<Vec<String>>, req: Request) {
     }
 }
 
-pub fn start(port: u16, data_dir: &str, volumes: Vec<String>) {
+pub fn start(port: u16, data_dir: &str, threads: u16, volumes: Vec<String>) {
     let db = match DB::open_default(data_dir) {
         Ok(db) => Arc::new(db),
         Err(e) => panic!("failed to open database: {:?}", e),
@@ -99,8 +99,7 @@ pub fn start(port: u16, data_dir: &str, volumes: Vec<String>) {
     let server = Arc::new(tiny_http::Server::http(addr).unwrap());
     let mut handles = Vec::new();
 
-    // TODO: defult to numcpus
-    for _ in 0..4 {
+    for _ in 0..threads {
         let server = server.clone();
         let db = db.clone();
         let volumes = volumes.clone();

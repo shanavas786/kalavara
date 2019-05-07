@@ -65,7 +65,7 @@ fn req_handler(data_dir: &str, mut req: Request) {
     };
 }
 
-pub fn start(port: u16, data_dir: String) {
+pub fn start(port: u16, data_dir: String, threads: u16) {
     let addr: SocketAddr = ([0, 0, 0, 0], port).into();
     let server = Arc::new(tiny_http::Server::http(addr).unwrap());
     let mut handles = Vec::new();
@@ -77,8 +77,7 @@ pub fn start(port: u16, data_dir: String) {
 
     let data_dir = Arc::new(data_dir);
 
-    // TODO: defult to numcpus
-    for _ in 0..4 {
+    for _ in 0..threads {
         let server = server.clone();
         let data_dir = data_dir.clone();
 
