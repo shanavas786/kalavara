@@ -1,3 +1,4 @@
+use rand::{thread_rng, Rng};
 use rocksdb::DB;
 use tiny_http::{Header, Method, Request, Response};
 
@@ -41,8 +42,9 @@ fn store_handler(db: &DB, volumes: &Mutex<Vec<String>>, mut req: Request) {
             if vlms.is_empty() {
                 req.respond(Response::from_string("No volume servers found").with_status_code(503))
             } else {
-                // FIXME get random nubmer
-                let volume = vlms.get(0).unwrap();
+                let mut rng = thread_rng();
+                let n: usize = rng.gen_range(0, vlms.len());
+                let volume = vlms.get(n).unwrap();
 
                 match db.put(path.as_bytes(), volume) {
                     Ok(_) => req.respond(redirect!(&format!("Location:{}{}", volume, path))),
