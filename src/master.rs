@@ -4,7 +4,7 @@ use tiny_http::{Header, Method, Request, Response};
 
 use std::net::SocketAddr;
 use std::str::FromStr;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 use std::thread;
 
 macro_rules! redirect {
@@ -15,12 +15,12 @@ macro_rules! redirect {
     };
 }
 
-fn admin_handle(_volumes: &Mutex<Vec<String>>, req: Request) {
+fn admin_handle(_volumes: &RwLock<Vec<String>>, req: Request) {
     // FIXME
     let _ = req.respond(Response::from_string("admin"));
 }
 
-fn store_handler(db: &DB, volumes: &Mutex<Vec<String>>, mut req: Request) {
+fn store_handler(db: &DB, volumes: &RwLock<Vec<String>>, mut req: Request) {
     // TODO remove query params
     let path = String::from(req.url());
 
@@ -37,7 +37,7 @@ fn store_handler(db: &DB, volumes: &Mutex<Vec<String>>, mut req: Request) {
             Err(_) => req.respond(Response::from_string("Server Error").with_status_code(500)),
         },
         Method::Post | Method::Put => {
-            let vlms = volumes.lock().unwrap();
+            let vlms = volumes.read().unwrap();
 
             if vlms.is_empty() {
                 req.respond(Response::from_string("No volume servers found").with_status_code(503))
@@ -74,7 +74,7 @@ fn store_handler(db: &DB, volumes: &Mutex<Vec<String>>, mut req: Request) {
     };
 }
 
-fn req_handler(db: &DB, volumes: &Mutex<Vec<String>>, req: Request) {
+fn req_handler(db: &DB, volumes: &RwLock<Vec<String>>, req: Request) {
     let path = String::from(req.url());
 
     if path.starts_with("/store/") {
@@ -93,7 +93,7 @@ pub fn start(port: u16, data_dir: &str, threads: u16, volumes: Vec<String>) {
     };
 
     // TODO use RWLOck
-    let volumes: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(volumes));
+    let volumes: Arc<RwLock<Vec<String>>> = Arc::new(RwLock::new(volumes));
     let addr: SocketAddr = ([0, 0, 0, 0], port).into();
 
     let server = Arc::new(tiny_http::Server::http(addr).unwrap());
