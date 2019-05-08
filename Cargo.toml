@@ -3,6 +3,10 @@ name = "kalavara"
 version = "0.1.0"
 authors = ["Shanavas M <shanavas.m2@gmail.com>"]
 edition = "2018"
+repository = "https://github.com/shanavas786/kalavara"
+keywords = ["keyvaluestore", "keyvalue", "persistent"]
+description = "A distributed persistent key value store that speaks http."
+license = "CC0-1.0"
 
 [dependencies]
 argparse = "0.2.2"
@@ -15,3 +19,5 @@ tiny_http = "0.6.2"
 
 [dev-dependencies]
 reqwest = "0.9.16"
+
+[badges]

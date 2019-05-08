@@ -52,7 +52,7 @@ curl -XGET -L http://localhost:6000/store/key
 curl -XDELETE -L http://localhost:6000/store/key
 ```
 
-# Performatce
+# Performance
 
 ```sh
 ./wrk -t2 -c100 -d10s http://localhost:6000/missingkey
