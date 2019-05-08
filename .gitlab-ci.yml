@@ -1,0 +1,26 @@
+image: rust:latest
+
+before_script:
+  - rustup component add rustfmt
+  - rustup component add clippy
+  - apt-get update && apt-get install -y llvm-3.9-dev libclang-3.9-dev clang-3.9 g++ librocksdb-dev
+
+stages:
+  - rustfmt
+  - clippy
+  - test
+
+rustfmt:
+  stage: rustfmt
+  script:
+    - cargo fmt -- --check
+
+clippy:
+  stage: clippy
+  script:
+    - cargo clippy -- -Dwarnings
+
+test:
+  stage: test
+  script:
+    - cargo test

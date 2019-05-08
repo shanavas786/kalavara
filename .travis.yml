@@ -1,0 +1,48 @@
+sudo: required
+dist: xenial
+language: rust
+
+os:
+  - linux
+  - osx
+
+cache:
+  cargo: true
+  directories:
+    - $HOME/.rustup
+
+addons:
+  apt:
+    packages:
+      - librocksdb-dev
+  homebrew:
+    packages:
+      - rocksdb
+
+rust:
+  - stable
+
+stages:
+  - rustfmt
+  - clippy
+  - test
+
+jobs:
+  include:
+    - stage: rustfmt
+      os: linux
+      before_script:
+        - travis_wait rustup component add rustfmt
+      script:
+        - cargo fmt -- --check
+
+    - stage: clippy
+      os: linux
+      before_script:
+        - travis_wait rustup component add clippy
+      script:
+        - cargo clippy -- -D warnings
+
+    - stage: test
+      script:
+        - cargo test

@@ -1,5 +1,8 @@
 # Kalavara
 
+[![Travis Status](https://travis-ci.org/shanavas786/kalavara.svg?branch=master)](https://travis-ci.org/shanavas786/kalavara)
+[![Gitlab CI](https://gitlab.com/shanavasm/kalavara/badges/master/pipeline.svg)](https://gitlab.com/shanavasm/kalavara/pipelines)
+
 A distributed persistent key value store that speaks http. Inspired by
 [minkeyvalue](https://github.com/geohot/minikeyvalue).
 
