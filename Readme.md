@@ -49,6 +49,22 @@ curl -XGET -L http://localhost:6000/store/key
 curl -XDELETE -L http://localhost:6000/store/key
 ```
 
+# Performatce
+
+```sh
+./wrk -t2 -c100 -d10s http://localhost:6000/missingkey
+Running 10s test @ http://localhost:6000/missingkey
+  2 threads and 100 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     2.04ms    1.61ms  28.98ms   83.07%
+    Req/Sec    21.33k     4.76k   34.42k    66.00%
+  426423 requests in 10.07s, 65.88MB read
+  Non-2xx or 3xx responses: 426423
+Requests/sec:  42359.95
+Transfer/sec:      6.54MB
+
+```
+
 # License
 
 <p xmlns:dct="http://purl.org/dc/terms/"
