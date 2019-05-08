@@ -25,7 +25,7 @@ fn req_handler(data_dir: &str, mut req: Request) {
 
             match file {
                 Ok(file) => req.respond(Response::from_file(file)),
-                Err(_) => req.respond(Response::from_string("Server Error").with_status_code(500)),
+                Err(_) => req.respond(resp!("Server Error", 500)),
             }
         }
         Method::Post | Method::Put => {
@@ -41,25 +41,18 @@ fn req_handler(data_dir: &str, mut req: Request) {
                                 .persist(dest_path)
                                 .map_err(|_| Error::new(ErrorKind::Other, "")),
                         ) {
-                        Ok(_) => {
-                            req.respond(Response::from_string("Inserted").with_status_code(201))
-                        }
-                        _ => req.respond(
-                            Response::from_string("Unable to create file").with_status_code(500),
-                        ),
+                        Ok(_) => req.respond(resp!("Inserted", 201)),
+                        _ => req.respond(resp!("Unable to create file", 500)),
                     }
                 }
-                Err(_) => req
-                    .respond(Response::from_string("Unable to create file").with_status_code(500)),
+                Err(_) => req.respond(resp!("Unable to create file", 500)),
             }
         }
         Method::Delete => match remove_file(dest_path) {
-            Ok(_) => req.respond(Response::from_string("Delete").with_status_code(204)),
-            Err(_) => {
-                req.respond(Response::from_string("Unable to delete file").with_status_code(500))
-            }
+            Ok(_) => req.respond(resp!("Deleted", 204)),
+            Err(_) => req.respond(resp!("Unable to delete file", 500)),
         },
-        _ => req.respond(Response::from_string("not implemented").with_status_code(200)),
+        _ => req.respond(resp!("Method not allowed", 405)),
     };
 }
 

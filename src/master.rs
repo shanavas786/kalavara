@@ -1,7 +1,7 @@
 use rand::seq::IteratorRandom;
 use rand::thread_rng;
 use rocksdb::DB;
-use tiny_http::{Header, Method, Request, Response};
+use tiny_http::{Method, Request};
 
 use std::collections::HashSet;
 use std::net::SocketAddr;
@@ -9,17 +9,9 @@ use std::str::FromStr;
 use std::sync::{Arc, RwLock};
 use std::thread;
 
-macro_rules! redirect {
-    ($url:expr) => {
-        Response::from_string("")
-            .with_status_code(307)
-            .with_header(Header::from_str($url).unwrap())
-    };
-}
-
 fn admin_handle(_volumes: &RwLock<HashSet<String>>, req: Request) {
     // FIXME
-    let _ = req.respond(Response::from_string("admin"));
+    let _ = req.respond(resp!("admin"));
 }
 
 fn store_handler(db: &DB, volumes: &RwLock<HashSet<String>>, mut req: Request) {
@@ -35,14 +27,14 @@ fn store_handler(db: &DB, volumes: &RwLock<HashSet<String>>, mut req: Request) {
                 let volume_url = volume.to_utf8().unwrap();
                 req.respond(redirect!(&format!("Location:{}{}", volume_url, path)))
             }
-            Ok(None) => req.respond(Response::from_string("Key not found").with_status_code(404)),
-            Err(_) => req.respond(Response::from_string("Server Error").with_status_code(500)),
+            Ok(None) => req.respond(resp!("Key not found", 404)),
+            Err(_) => req.respond(resp!("Server Error", 500)),
         },
         Method::Post | Method::Put => {
             let vlms = volumes.read().unwrap();
 
             if vlms.is_empty() {
-                req.respond(Response::from_string("No volume servers found").with_status_code(503))
+                req.respond(resp!("No volume servers found", 503))
             } else {
                 let mut rng = thread_rng();
                 let mut volume = None;
@@ -54,9 +46,7 @@ fn store_handler(db: &DB, volumes: &RwLock<HashSet<String>>, mut req: Request) {
                     Ok(_) => {
                         req.respond(redirect!(&format!("Location:{}{}", volume.unwrap(), path)))
                     }
-                    Err(_) => {
-                        req.respond(Response::from_string("Server Error").with_status_code(500))
-                    }
+                    Err(_) => req.respond(resp!("Server Error", 500)),
                 }
             }
         }
@@ -70,13 +60,11 @@ fn store_handler(db: &DB, volumes: &RwLock<HashSet<String>>, mut req: Request) {
                     db.delete(path.as_bytes()).unwrap();
                     req.respond(redirect!(&format!("Location:{}{}", volume_url, path)))
                 }
-                Ok(None) => {
-                    req.respond(Response::from_string("Key not found").with_status_code(404))
-                }
-                Err(_) => req.respond(Response::from_string("Server Error").with_status_code(500)),
+                Ok(None) => req.respond(resp!("Key not found", 404)),
+                Err(_) => req.respond(resp!("Server Error", 500)),
             }
         }
-        _ => req.respond(Response::from_string("Method not allowed").with_status_code(405)),
+        _ => req.respond(resp!("Method not allowed", 405)),
     };
 }
 
@@ -88,7 +76,7 @@ fn req_handler(db: &DB, volumes: &RwLock<HashSet<String>>, req: Request) {
     } else if path.starts_with("/admin/") {
         admin_handle(volumes, req);
     } else {
-        let _ = req.respond(Response::from_string("Invalid Path").with_status_code(404));
+        let _ = req.respond(resp!("Invalid Path", 404));
     }
 }
 
