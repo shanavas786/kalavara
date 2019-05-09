@@ -7,6 +7,7 @@ repository = "https://github.com/shanavas786/kalavara"
 keywords = ["keyvaluestore", "keyvalue", "persistent"]
 description = "A distributed persistent key value store that speaks http."
 license = "CC0-1.0"
+readme = "Readme.md"
 
 [dependencies]
 argparse = "0.2.2"
