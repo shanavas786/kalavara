@@ -10,9 +10,7 @@ use std::sync::{Arc, RwLock};
 use std::thread;
 use tiny_http::{Request, Server};
 
-use crate::{Respond, Service};
-
-const STORE_PREFIX: &str = "/store/";
+use crate::{Respond, Service, STORE_PREFIX};
 
 /// Master store
 struct Master {
@@ -128,6 +126,8 @@ impl Service for Master {
             Err(_) => ResponseKind::ServerError,
         }
     }
+
+    // TODO: match store prefix
 }
 
 /// starts a kalavara master server

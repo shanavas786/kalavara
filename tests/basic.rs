@@ -44,7 +44,7 @@ fn test_kv() {
 
     let res = minreq::get("http://localhost:6000/store/key1").send();
     assert!(res.is_ok());
-    let mut res = res.unwrap();
+    let res = res.unwrap();
     assert_eq!(res.status_code, 200);
     // FIXME: minreq appends a \r\n to the response
     assert_eq!(res.body.trim(), String::from("val1"));
@@ -70,7 +70,7 @@ fn test_remove_query_params() {
 
     let res = minreq::get("http://localhost:6000/store/key2?que=valu").send();
     assert!(res.is_ok());
-    let mut res = res.unwrap();
+    let res = res.unwrap();
     assert_eq!(res.status_code, 200);
     // FIXME: minreq appends a \r\n to the response
     assert_eq!(res.body.trim(), String::from("val2"));

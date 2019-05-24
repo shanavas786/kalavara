@@ -1,10 +1,16 @@
 use tiny_http::{Method, Request};
 
-use std::io::{empty as empty_reader, Read};
+use std::io::Read;
+
+pub const STORE_PREFIX: &str = "/store/";
 
 /// returns the key from url string by removing /store/ prefix and query params if any
 fn get_key(url: &str, prefix: &str) -> String {
-    let pfx_len = prefix.len();
+    let pfx_len = if url.starts_with(prefix) {
+        prefix.len()
+    } else {
+        0
+    };
 
     // remove query params if any
     match url.find('?') {
@@ -45,12 +51,12 @@ trait Service: Sync + Send {
     fn delete(&self, key: String) -> Self::Response;
 
     /// Dispatch a request to respective handler methods
-    fn dispatch(&self, req: Request) {
+    fn dispatch(&self, mut req: Request) {
         let key = get_key(req.url(), self.get_prefix());
 
         let resp = match *req.method() {
             Method::Get => self.get(key),
-            Method::Post | Method::Put => self.save(key, Box::new(empty_reader())),
+            Method::Post | Method::Put => self.save(key, req.as_reader()),
             Method::Delete => self.delete(key),
             _ => Default::default(),
         };

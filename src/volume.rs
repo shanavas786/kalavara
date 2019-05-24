@@ -1,59 +1,129 @@
 use md5::compute as compute_md5;
 use tempfile::NamedTempFile;
-use tiny_http::{Method, Request, Response};
+use tiny_http::{Request, Response};
 
 use std::fs::{create_dir_all, remove_file, File};
-use std::io::{Error, ErrorKind, Write};
+use std::io::{copy, Error, ErrorKind, Read};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::thread;
 
-fn req_handler(data_dir: &str, mut req: Request) {
-    let path = format!("{:x}", compute_md5(req.url().as_bytes()));
-    let mut body = String::new();
-    let _ = req.as_reader().read_to_string(&mut body);
+use crate::{Respond, Service, STORE_PREFIX};
 
-    let mut dest_path = PathBuf::from(data_dir);
-    dest_path.push(path.get(0..1).unwrap());
-    dest_path.push(path.get(1..2).unwrap());
-    dest_path.push(path.get(2..).unwrap());
+/// volume store
+struct Volume {
+    /// directory to store file blobs
+    data_dir: Arc<String>,
+}
 
-    let _ = match *req.method() {
-        Method::Get => {
-            let file = File::open(dest_path);
+/// Types of responses that master generates
+enum ResponseKind {
+    /// Path to file blob
+    FilePath(PathBuf),
 
-            match file {
+    /// Value saved
+    Created,
+
+    /// Value deleted
+    Deleted,
+
+    /// Error occured, 500
+    ServerError,
+
+    /// Method not allowed, 405
+    NotAllowed,
+}
+
+impl Default for ResponseKind {
+    fn default() -> Self {
+        ResponseKind::NotAllowed
+    }
+}
+
+impl Respond for ResponseKind {
+    fn respond(self, req: Request) {
+        use ResponseKind::*;
+
+        let _ = match self {
+            FilePath(path) => match File::open(path) {
                 Ok(file) => req.respond(Response::from_file(file)),
                 Err(_) => req.respond(resp!("Server Error", 500)),
-            }
-        }
-        Method::Post | Method::Put => {
-            let tmpdir = Path::new(data_dir).join("tmp");
+            },
+            Created => req.respond(resp!("Created", 201)),
+            Deleted => req.respond(resp!("Deleted", 204)),
+            ServerError => req.respond(resp!("Server error", 500)),
+            NotAllowed => req.respond(resp!("Method not allowd", 405)),
+        };
+    }
+}
 
-            match NamedTempFile::new_in(tmpdir) {
-                Ok(mut tmpfile) => {
-                    match tmpfile
-                        .write(body.as_bytes())
-                        .and(create_dir_all(dest_path.parent().unwrap()))
-                        .and(
-                            tmpfile
-                                .persist(dest_path)
-                                .map_err(|_| Error::new(ErrorKind::Other, "")),
-                        ) {
-                        Ok(_) => req.respond(resp!("Inserted", 201)),
-                        _ => req.respond(resp!("Unable to create file", 500)),
-                    }
-                }
-                Err(_) => req.respond(resp!("Unable to create file", 500)),
-            }
+impl Volume {
+    /// Create new volume service
+    fn new(data_dir: String) -> Self {
+        Self {
+            data_dir: Arc::new(data_dir),
         }
-        Method::Delete => match remove_file(dest_path) {
-            Ok(_) => req.respond(resp!("Deleted", 204)),
-            Err(_) => req.respond(resp!("Unable to delete file", 500)),
-        },
-        _ => req.respond(resp!("Method not allowed", 405)),
-    };
+    }
+
+    /// Calcualtes destination file path from key
+    fn key_to_path(&self, key: &str) -> PathBuf {
+        let path = format!("{:x}", compute_md5(key.as_bytes()));
+
+        let mut dest_path = PathBuf::from(self.data_dir.as_ref());
+        dest_path.push(path.get(0..1).unwrap());
+        dest_path.push(path.get(1..2).unwrap());
+        dest_path.push(path.get(2..).unwrap());
+
+        dest_path
+    }
+}
+
+impl Service for Volume {
+    type Response = ResponseKind;
+
+    fn get_prefix(&self) -> &'static str {
+        STORE_PREFIX
+    }
+
+    /// Get value of a key from store
+    fn get(&self, key: String) -> Self::Response {
+        let dest_path = self.key_to_path(&key);
+        ResponseKind::FilePath(dest_path)
+    }
+
+    /// Save/Update key in store
+    fn save(&self, key: String, mut value: impl Read) -> Self::Response {
+        let tmpdir = Path::new(self.data_dir.as_ref()).join("tmp");
+        let dest_path = self.key_to_path(&key);
+
+        match NamedTempFile::new_in(tmpdir) {
+            Ok(mut tmpfile) => {
+                // copy data to file
+                match copy(&mut value, &mut tmpfile)
+                    .and(create_dir_all(dest_path.parent().unwrap()))
+                    .and(
+                        tmpfile
+                            .persist(dest_path)
+                            .map_err(|_| Error::new(ErrorKind::Other, "")),
+                    ) {
+                    Ok(_) => ResponseKind::Created,
+                    _ => ResponseKind::ServerError,
+                }
+            }
+            Err(_) => ResponseKind::ServerError,
+        }
+    }
+
+    /// Remove a key from store
+    fn delete(&self, key: String) -> Self::Response {
+        let dest_path = self.key_to_path(&key);
+
+        match remove_file(dest_path) {
+            Ok(_) => ResponseKind::Deleted,
+            Err(_) => ResponseKind::ServerError,
+        }
+    }
 }
 
 pub fn start(port: u16, data_dir: String, threads: u16) {
@@ -66,15 +136,15 @@ pub fn start(port: u16, data_dir: String, threads: u16) {
         panic!("Could not create data dir. exiting\n");
     }
 
-    let data_dir = Arc::new(data_dir);
+    let volume = Arc::new(Volume::new(data_dir));
 
     for _ in 0..threads {
         let server = server.clone();
-        let data_dir = data_dir.clone();
+        let handler = volume.clone();
 
         handles.push(thread::spawn(move || {
             for rq in server.incoming_requests() {
-                req_handler(&data_dir, rq);
+                handler.dispatch(rq);
             }
         }));
     }
