@@ -19,6 +19,6 @@ tempfile = "3.0.7"
 tiny_http = "0.6.2"
 
 [dev-dependencies]
-reqwest = "0.9.16"
+minreq = "1.2.0"
 
 [badges]

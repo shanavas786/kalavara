@@ -1,6 +1,5 @@
 use kalavara::master::start as master_start;
 use kalavara::volume::start as volume_start;
-use reqwest::Client;
 
 use std::sync::{Once, ONCE_INIT};
 use std::thread;
@@ -27,7 +26,6 @@ fn run() {
 /// to be called by all tests.
 fn setup() {
     INIT.call_once(|| {
-        println!("here we go");
         run();
         thread::sleep(Duration::from_millis(1000));
     });
@@ -37,57 +35,51 @@ fn setup() {
 fn test_kv() {
     setup();
 
-    let res = Client::new()
-        .put("http://localhost:6000/store/key1")
-        .body("val1")
+    let res = minreq::put("http://localhost:6000/store/key1")
+        .with_body("val1")
         .send();
 
     assert!(res.is_ok());
-    assert_eq!(res.unwrap().status(), 201);
+    assert_eq!(res.unwrap().status_code, 201);
 
-    let res = Client::new().get("http://localhost:6000/store/key1").send();
+    let res = minreq::get("http://localhost:6000/store/key1").send();
     assert!(res.is_ok());
     let mut res = res.unwrap();
-    assert_eq!(res.status(), 200);
-    assert_eq!(res.text().unwrap(), "val1");
+    assert_eq!(res.status_code, 200);
+    // FIXME: minreq appends a \r\n to the response
+    assert_eq!(res.body.trim(), String::from("val1"));
 
-    let res = Client::new()
-        .delete("http://localhost:6000/store/key1")
-        .send();
+    let res = minreq::delete("http://localhost:6000/store/key1").send();
     assert!(res.is_ok());
-    assert_eq!(res.unwrap().status(), 204);
+    assert_eq!(res.unwrap().status_code, 204);
 
-    let res = Client::new().get("http://localhost:6000/store/key1").send();
+    let res = minreq::get("http://localhost:6000/store/key1").send();
     assert!(res.is_ok());
-    assert_eq!(res.unwrap().status(), 404);
+    assert_eq!(res.unwrap().status_code, 404);
 }
 
 #[test]
 fn test_remove_query_params() {
     setup();
-    let res = Client::new()
-        .put("http://localhost:6000/store/key2?query=value")
-        .body("val2")
+    let res = minreq::put("http://localhost:6000/store/key2?query=value")
+        .with_body("val2")
         .send();
 
     assert!(res.is_ok());
-    assert_eq!(res.unwrap().status(), 201);
+    assert_eq!(res.unwrap().status_code, 201);
 
-    let res = Client::new()
-        .get("http://localhost:6000/store/key2?que=valu")
-        .send();
+    let res = minreq::get("http://localhost:6000/store/key2?que=valu").send();
     assert!(res.is_ok());
     let mut res = res.unwrap();
-    assert_eq!(res.status(), 200);
-    assert_eq!(res.text().unwrap(), "val2");
+    assert_eq!(res.status_code, 200);
+    // FIXME: minreq appends a \r\n to the response
+    assert_eq!(res.body.trim(), String::from("val2"));
 
-    let res = Client::new()
-        .delete("http://localhost:6000/store/key2?q=v")
-        .send();
+    let res = minreq::delete("http://localhost:6000/store/key2?q=v").send();
     assert!(res.is_ok());
-    assert_eq!(res.unwrap().status(), 204);
+    assert_eq!(res.unwrap().status_code, 204);
 
-    let res = Client::new().get("http://localhost:6000/store/key2").send();
+    let res = minreq::get("http://localhost:6000/store/key2").send();
     assert!(res.is_ok());
-    assert_eq!(res.unwrap().status(), 404);
+    assert_eq!(res.unwrap().status_code, 404);
 }
