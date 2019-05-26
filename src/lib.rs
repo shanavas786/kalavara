@@ -2,7 +2,8 @@ use tiny_http::{Method, Request};
 
 use std::io::Read;
 
-pub const STORE_PREFIX: &str = "/store/";
+const STORE_PREFIX: &str = "/store/";
+const ADMIN_PREFIX: &str = "/admin/";
 
 /// returns the key from url string by removing /store/ prefix and query params if any
 fn get_key(url: &str, prefix: &str) -> String {

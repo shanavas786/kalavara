@@ -83,3 +83,15 @@ fn test_remove_query_params() {
     assert!(res.is_ok());
     assert_eq!(res.unwrap().status_code, 404);
 }
+
+#[test]
+fn no_prefix() {
+    setup();
+    // without store prefix
+    let res = minreq::put("http://localhost:6000/key2?query=value")
+        .with_body("val2")
+        .send();
+
+    assert!(res.is_ok());
+    assert_eq!(res.unwrap().status_code, 404);
+}

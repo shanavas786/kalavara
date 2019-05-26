@@ -10,7 +10,7 @@ use std::sync::{Arc, RwLock};
 use std::thread;
 use tiny_http::{Request, Server};
 
-use crate::{Respond, Service, STORE_PREFIX};
+use crate::{Respond, Service, ADMIN_PREFIX, STORE_PREFIX};
 
 /// Master store
 struct Master {
@@ -77,6 +77,19 @@ impl Master {
 
         volume.unwrap().to_owned()
     }
+
+    fn dispatch(&self, req: Request) {
+        let url = req.url();
+
+        if url.starts_with(STORE_PREFIX) {
+            Service::dispatch(self, req);
+        } else if url.starts_with(ADMIN_PREFIX) {
+            // TODO
+            unimplemented!();
+        } else {
+            let _ = req.respond(resp!("Path not found", 404));
+        }
+    }
 }
 
 impl Service for Master {
@@ -126,8 +139,6 @@ impl Service for Master {
             Err(_) => ResponseKind::ServerError,
         }
     }
-
-    // TODO: match store prefix
 }
 
 /// starts a kalavara master server
