@@ -7,6 +7,10 @@
 A distributed persistent key value store that speaks http. Inspired by
 [minkeyvalue](https://github.com/geohot/minikeyvalue).
 
+# installation
+
+precompiled binaries are available on [release page](https://github.com/shanavas786/kalavara/releases) or
+you can run `cargo install kalavara` command to install kalavara
 
 # master server
 
@@ -30,7 +34,7 @@ file system
 to start the volume server, run
 
 ```sh
-master -p 7000 -d /tmp/kalavarastore
+volume -p 7000 -d /tmp/kalavarastore
 ```
 
 ## Usage
@@ -52,6 +56,13 @@ curl -XGET -L http://localhost:6000/store/key
 ```sh
 curl -XDELETE -L http://localhost:6000/store/key
 ```
+
+4. register a new volume server with master
+
+```sh
+curl -XPOST -d http://newvolume.server http://localhost:6000/admin/add-volume
+```
+
 
 # Performance
 

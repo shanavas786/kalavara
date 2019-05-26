@@ -1,3 +1,16 @@
+//! # master server
+//!
+//! Master server stores index (key, url of volume server where the value is
+//! stored) in rocksdb. Requests are redirected to curresponding volume server
+//! after metadata is updated.
+//!
+//! to start the server, run
+//!
+//! ```sh
+//! master -p 6000 -d /tmp/kalavadb -v http://volume1:6001 http://volume2:6002
+//! ```
+//!
+
 use rand::seq::IteratorRandom;
 use rand::thread_rng;
 use rocksdb::DB;

@@ -1,3 +1,16 @@
+//! # volume server
+//!
+//! Volume server stores values in file system. For atomicity temporary files are
+//! first created in `destdir/tmp` directory and then moved to destination path.
+//! For this approach to work, `destdir/tmp` and destination path should be in same
+//! file system
+//!
+//! to start the volume server, run
+//!
+//! ```sh
+//! volume -p 7000 -d /tmp/kalavarastore
+//! ```
+
 use md5::compute as compute_md5;
 use tempfile::NamedTempFile;
 use tiny_http::{Request, Response};

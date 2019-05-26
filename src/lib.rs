@@ -1,3 +1,32 @@
+//! A distributed persistent key value store that speaks http. Inspired by
+//! [minkeyvalue](https://github.com/geohot/minikeyvalue).
+//!
+//! ## Usage
+//!
+//! 1. insert a key-value
+//!
+//! ```sh
+//! curl -XPUT -L -d value http://localhost:6000/store/key
+//! ```
+//!
+//! 2. retrive value
+//!
+//! ```sh
+//! curl -XGET -L http://localhost:6000/store/key
+//! ```
+//!
+//! 3. delete a key
+//!
+//! ```sh
+//! curl -XDELETE -L http://localhost:6000/store/key
+//! ```
+//!
+//! 4. register a new volume server with master
+//!
+//! ```sh
+//! curl -XPOST -d "http://newvolume.server" http://localhost:6000/admin/add-volume
+//! ```
+
 use tiny_http::{Method, Request};
 
 use std::io::Read;
