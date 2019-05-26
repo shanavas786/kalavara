@@ -24,6 +24,7 @@ enum ResponseKind {
     /// Redirect to volume server, 301
     Redirect(String),
 
+    /// 200
     Ok(String),
 
     /// Key not found, 404
@@ -134,7 +135,7 @@ impl AdminService for Master {
         if self.volumes.write().unwrap().insert(volume) {
             ResponseKind::Ok("Volume added".to_string())
         } else {
-            ResponseKind::Ok("Skipping duplicate volume".to_string())
+            ResponseKind::Ok("Skipping duplicate volume server".to_string())
         }
     }
 }
