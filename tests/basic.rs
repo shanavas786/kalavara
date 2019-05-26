@@ -85,7 +85,7 @@ fn test_remove_query_params() {
 }
 
 #[test]
-fn no_prefix() {
+fn test_no_prefix() {
     setup();
     // without store prefix
     let res = minreq::put("http://localhost:6000/key2?query=value")

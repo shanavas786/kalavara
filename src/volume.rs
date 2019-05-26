@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::thread;
 
-use crate::{Respond, Service, STORE_PREFIX};
+use crate::{Respond, Service};
 
 /// volume store
 struct Volume {
@@ -82,10 +82,6 @@ impl Volume {
 impl Service for Volume {
     type Response = ResponseKind;
 
-    fn get_prefix(&self) -> &'static str {
-        STORE_PREFIX
-    }
-
     /// Get value of a key from store
     fn get(&self, key: String) -> Self::Response {
         let dest_path = self.key_to_path(&key);
@@ -131,7 +127,8 @@ pub fn start(port: u16, data_dir: String, threads: u16) {
     let server = Arc::new(tiny_http::Server::http(addr).unwrap());
     let mut handles = Vec::new();
 
-    // create data directory. files are initially created in tmp dir then moved to corresponding path
+    // creates data directory. files are initially created in tmp dir then moved to corresponding
+    // path
     if create_dir_all(Path::new(&data_dir).join("tmp")).is_err() {
         panic!("Could not create data dir. exiting\n");
     }

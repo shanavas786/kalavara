@@ -8,8 +8,9 @@ use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
 use std::thread;
-use tiny_http::{Request, Server};
+use tiny_http::{Method, Request, Server};
 
+use crate::get_key;
 use crate::{Respond, Service, ADMIN_PREFIX, STORE_PREFIX};
 
 /// Master store
@@ -22,6 +23,8 @@ struct Master {
 enum ResponseKind {
     /// Redirect to volume server, 301
     Redirect(String),
+
+    Ok(String),
 
     /// Key not found, 404
     NotFound,
@@ -36,6 +39,30 @@ enum ResponseKind {
     Unavailable,
 }
 
+/// Admin service interfaces
+trait AdminService: Sync + Send {
+    /// add new volume server
+    fn add_volume(&self, url: String) -> ResponseKind;
+
+    /// dispatch request to admin service
+    fn dispatch(&self, mut req: Request) {
+        let path = get_key(req.url(), ADMIN_PREFIX);
+
+        let resp = match (path.as_str(), req.method()) {
+            ("add-volume", &Method::Post) => {
+                let mut body = String::new();
+                let _ = req.as_reader().read_to_string(&mut body);
+
+                self.add_volume(body)
+            }
+            ("add-volume", _) => ResponseKind::NotAllowed,
+            (_, _) => ResponseKind::NotFound,
+        };
+
+        resp.respond(req);
+    }
+}
+
 impl Default for ResponseKind {
     fn default() -> Self {
         ResponseKind::NotAllowed
@@ -48,6 +75,7 @@ impl Respond for ResponseKind {
 
         let _ = match self {
             Redirect(url) => req.respond(redirect!(&format!("Location:{}", url))),
+            Ok(txt) => req.respond(resp!(txt, 200)),
             NotFound => req.respond(resp!("Key not found", 404)),
             ServerError => req.respond(resp!("Server error", 500)),
             NotAllowed => req.respond(resp!("Method not allowd", 405)),
@@ -56,48 +84,8 @@ impl Respond for ResponseKind {
     }
 }
 
-impl Master {
-    pub fn new(db: DB, volumes: Vec<String>) -> Master {
-        Master {
-            db: Arc::new(db),
-            volumes: Arc::new(RwLock::new(volumes.into_iter().collect())),
-        }
-    }
-
-    /// translate key to volume url
-    /// TODO: more intelligent selection
-    fn key_to_volume(&self, _key: &str) -> String {
-        let mut rng = thread_rng();
-        let mut volume = None;
-        let volumes = self.volumes.read().unwrap();
-
-        while volume.is_none() {
-            volume = volumes.iter().choose(&mut rng);
-        }
-
-        volume.unwrap().to_owned()
-    }
-
-    fn dispatch(&self, req: Request) {
-        let url = req.url();
-
-        if url.starts_with(STORE_PREFIX) {
-            Service::dispatch(self, req);
-        } else if url.starts_with(ADMIN_PREFIX) {
-            // TODO
-            unimplemented!();
-        } else {
-            let _ = req.respond(resp!("Path not found", 404));
-        }
-    }
-}
-
 impl Service for Master {
     type Response = ResponseKind;
-
-    fn get_prefix(&self) -> &'static str {
-        STORE_PREFIX
-    }
 
     fn get(&self, key: String) -> Self::Response {
         match self.db.get(key.as_bytes()) {
@@ -137,6 +125,51 @@ impl Service for Master {
             }
             Ok(None) => ResponseKind::NotFound,
             Err(_) => ResponseKind::ServerError,
+        }
+    }
+}
+
+impl AdminService for Master {
+    fn add_volume(&self, volume: String) -> ResponseKind {
+        if self.volumes.write().unwrap().insert(volume) {
+            ResponseKind::Ok("Volume added".to_string())
+        } else {
+            ResponseKind::Ok("Skipping duplicate volume".to_string())
+        }
+    }
+}
+
+impl Master {
+    pub fn new(db: DB, volumes: Vec<String>) -> Master {
+        Master {
+            db: Arc::new(db),
+            volumes: Arc::new(RwLock::new(volumes.into_iter().collect())),
+        }
+    }
+
+    /// translate key to volume url
+    /// TODO: more intelligent selection
+    fn key_to_volume(&self, _key: &str) -> String {
+        let mut rng = thread_rng();
+        let mut volume = None;
+        let volumes = self.volumes.read().unwrap();
+
+        while volume.is_none() {
+            volume = volumes.iter().choose(&mut rng);
+        }
+
+        volume.unwrap().to_owned()
+    }
+
+    fn dispatch(&self, req: Request) {
+        let url = req.url();
+
+        if url.starts_with(STORE_PREFIX) {
+            Service::dispatch(self, req);
+        } else if url.starts_with(ADMIN_PREFIX) {
+            AdminService::dispatch(self, req);
+        } else {
+            let _ = req.respond(resp!("Path not found", 404));
         }
     }
 }

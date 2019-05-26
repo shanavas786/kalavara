@@ -39,9 +39,6 @@ trait Service: Sync + Send {
     /// Should know how to respond to a request
     type Response: Respond + Default;
 
-    /// Get url prefix
-    fn get_prefix(&self) -> &'static str;
-
     /// Get a key from store
     fn get(&self, key: String) -> Self::Response;
 
@@ -53,7 +50,7 @@ trait Service: Sync + Send {
 
     /// Dispatch a request to respective handler methods
     fn dispatch(&self, mut req: Request) {
-        let key = get_key(req.url(), self.get_prefix());
+        let key = get_key(req.url(), STORE_PREFIX);
 
         let resp = match *req.method() {
             Method::Get => self.get(key),
