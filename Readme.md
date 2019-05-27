@@ -37,6 +37,13 @@ to start the volume server, run
 volume -p 7000 -d /tmp/kalavarastore
 ```
 
+if master server is not aware of this volume server, register with
+
+```sh
+volume -p 7000 -d /tmp/kalavarastore -m http://master.server -b http://this.volume.server:7000
+```
+
+
 ## Usage
 
 1. insert a key-value

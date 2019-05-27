@@ -10,6 +10,11 @@
 //! ```sh
 //! volume -p 7000 -d /tmp/kalavarastore
 //! ```
+//!
+//! if master server is not aware of this volume server, register with
+//! ```sh
+//! volume -p 7000 -d /tmp/kalavarastore -m http://master.server -b http://volume.server:7000
+//! ```
 
 use md5::compute as compute_md5;
 use tempfile::NamedTempFile;
