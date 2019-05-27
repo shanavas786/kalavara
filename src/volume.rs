@@ -135,7 +135,22 @@ impl Service for Volume {
     }
 }
 
-pub fn start(port: u16, data_dir: String, threads: u16) {
+/// starts a kalavara volume server
+/// # Arguments
+///
+/// * `port` - Port name to listen at
+/// * `data_dir` - Storage directory
+/// * `threads` - Number of threads to spawn
+/// * `master` - url of master server to register at
+/// * `base` -  base url of server to register with master
+///
+pub fn start(
+    port: u16,
+    data_dir: String,
+    threads: u16,
+    master: Option<String>,
+    base: Option<String>,
+) {
     let addr: SocketAddr = ([0, 0, 0, 0], port).into();
     let server = Arc::new(tiny_http::Server::http(addr).unwrap());
     let mut handles = Vec::new();
@@ -145,6 +160,26 @@ pub fn start(port: u16, data_dir: String, threads: u16) {
     if create_dir_all(Path::new(&data_dir).join("tmp")).is_err() {
         panic!("Could not create data dir. exiting\n");
     }
+
+    // register at master
+    match (master, base) {
+        (Some(master), Some(base)) => {
+            let resp = minreq::post(format!("{}{}", master, "/admin/add-volume"))
+                .with_body(base)
+                .send();
+
+            match resp {
+                Ok(ref res) if res.status_code == 200 => {
+                    println!("Successfully registered with master");
+                }
+                _ => {
+                    panic!("Could not register with master");
+                }
+            };
+        }
+        (Some(_), _) => panic!("Host required"),
+        (_, _) => {} // skip if only host is provided
+    };
 
     let volume = Arc::new(Volume::new(data_dir));
 

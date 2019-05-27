@@ -18,7 +18,7 @@ fn run() {
     });
 
     thread::spawn(move || {
-        volume_start(7000, "/tmp/volume/".to_string(), 4);
+        volume_start(7000, "/tmp/volume/".to_string(), 4, None, None);
     });
 }
 

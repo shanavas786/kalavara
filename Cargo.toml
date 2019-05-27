@@ -12,13 +12,9 @@ readme = "Readme.md"
 [dependencies]
 argparse = "0.2.2"
 md5 = "0.6.1"
+minreq = "1.2.0"
 num_cpus = "1.0"
 rand = "0.6"
 rocksdb = "0.12.1"
 tempfile = "3.0.7"
 tiny_http = "0.6.2"
-
-[dev-dependencies]
-minreq = "1.2.0"
-
-[badges]
