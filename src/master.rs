@@ -15,7 +15,7 @@ use rand::seq::IteratorRandom;
 use rand::thread_rng;
 use rocksdb::DB;
 
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::io::Read;
 use std::net::SocketAddr;
 use std::str::FromStr;
@@ -29,7 +29,7 @@ use crate::{Respond, Service, ADMIN_PREFIX, STORE_PREFIX};
 /// Master store
 struct Master {
     db: Arc<DB>,
-    volumes: Arc<RwLock<HashSet<String>>>,
+    volumes: Arc<RwLock<HashMap<String, u32>>>,
 }
 
 /// Types of responses that master generates
@@ -145,19 +145,29 @@ impl Service for Master {
 
 impl AdminService for Master {
     fn add_volume(&self, volume: String) -> ResponseKind {
-        if self.volumes.write().unwrap().insert(volume) {
-            ResponseKind::Ok("Volume added".to_string())
-        } else {
+        let mut volume_maps = self.volumes.write().unwrap();
+
+        if (*volume_maps).contains_key(&volume) {
             ResponseKind::Ok("Skipping duplicate volume server".to_string())
+        } else {
+            (*volume_maps).insert(volume, 0);
+            ResponseKind::Ok("Volume added".to_string())
         }
     }
 }
 
 impl Master {
     pub fn new(db: DB, volumes: Vec<String>) -> Master {
+        // Create HashMap from url list
+        let mut volume_map = HashMap::<String, u32>::new();
+
+        for url in volumes {
+            volume_map.insert(url, 0);
+        }
+
         Master {
             db: Arc::new(db),
-            volumes: Arc::new(RwLock::new(volumes.into_iter().collect())),
+            volumes: Arc::new(RwLock::new(volume_map)),
         }
     }
 
@@ -166,10 +176,11 @@ impl Master {
     fn key_to_volume(&self, _key: &str) -> String {
         let mut rng = thread_rng();
         let mut volume = None;
-        let volumes = self.volumes.read().unwrap();
+        let volumes_map = self.volumes.read().unwrap();
 
         while volume.is_none() {
-            volume = volumes.iter().choose(&mut rng);
+            let urls = volumes_map.keys();
+            volume = urls.choose(&mut rng);
         }
 
         volume.unwrap().to_owned()
