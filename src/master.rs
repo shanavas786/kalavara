@@ -260,3 +260,89 @@ pub fn start(port: u16, data_dir: &str, threads: u16, volumes: Vec<String>) {
         h.join().unwrap();
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_master_crud() {
+        let data_dir = tempdir().unwrap();
+
+        let db = match DB::open_default(data_dir) {
+            Ok(db) => db,
+            Err(e) => panic!("failed to open database: {:?}", e),
+        };
+
+        let master = Master::new(
+            db,
+            vec![
+                "server1".to_owned(),
+                "server2".to_owned(),
+                "server3".to_owned(),
+                "server4".to_owned(),
+                "server5".to_owned(),
+            ],
+        );
+        let key = "key".to_owned();
+        let val = "val".to_owned();
+
+        assert!(match master.get(key.clone()) {
+            ResponseKind::NotFound => true,
+            _ => false,
+        });
+
+        let mut url = String::new();
+
+        assert!(match master.save(key.clone(), val.clone().as_bytes()) {
+            ResponseKind::Redirect(to) => {
+                url = to;
+                true
+            }
+            _ => false,
+        });
+
+        /// should redirect to the save volume server
+        /// in which the key got stored
+        assert!(match master.get(key.clone()) {
+            ResponseKind::Redirect(to) => to == url,
+            _ => false,
+        });
+
+        assert_eq!(master.volumes.read().unwrap().get(&url[..7]), Some(&1));
+
+        assert!(match master.delete(key.clone()) {
+            ResponseKind::Redirect(to) => to == url,
+            _ => false,
+        });
+
+        assert_eq!(master.volumes.read().unwrap().get(&url[..7]), Some(&0));
+    }
+
+    #[test]
+    fn test_master_admin() {
+        let data_dir = tempdir().unwrap();
+
+        let db = match DB::open_default(data_dir) {
+            Ok(db) => db,
+            Err(e) => panic!("failed to open database: {:?}", e),
+        };
+
+        let master = Master::new(db, vec!["server1".to_owned(), "server2".to_owned()]);
+
+        assert!(match master.add_volume("server3".to_owned()) {
+            ResponseKind::Ok(resp) => resp == "Volume added".to_string(),
+            _ => false,
+        });
+
+        assert_eq!(master.volumes.read().unwrap().len(), 3);
+
+        assert!(match master.add_volume("server3".to_owned()) {
+            ResponseKind::Ok(resp) => resp == "Skipping duplicate volume server".to_string(),
+            _ => false,
+        });
+
+        assert_eq!(master.volumes.read().unwrap().len(), 3);
+    }
+}
