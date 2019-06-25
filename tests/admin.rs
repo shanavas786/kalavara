@@ -6,7 +6,6 @@ use std::thread;
 use std::time::Duration;
 
 mod basic;
-use basic::GetBody;
 
 static INIT: Once = ONCE_INIT;
 
@@ -48,7 +47,7 @@ fn test_add_volume() {
 
     assert!(res.is_ok());
     let res = res.unwrap();
-    assert_eq!(res.get_body(), "Volume added");
+    assert_eq!(res.body, "Volume added");
 
     // trying to insert again
     let res = minreq::post("http://localhost:6001/admin/add-volume")

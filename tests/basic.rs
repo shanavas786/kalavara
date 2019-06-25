@@ -31,17 +31,6 @@ fn setup() {
     });
 }
 
-pub trait GetBody {
-    fn get_body(&self) -> &str;
-}
-
-impl GetBody for minreq::Response {
-    // FIXME: minreq appends a \r\n to the response
-    fn get_body(&self) -> &str {
-        self.body.trim()
-    }
-}
-
 #[test]
 fn test_kv() {
     setup();
@@ -57,7 +46,7 @@ fn test_kv() {
     assert!(res.is_ok());
     let res = res.unwrap();
     assert_eq!(res.status_code, 200);
-    assert_eq!(res.get_body(), "val1");
+    assert_eq!(res.body, "val1");
 
     let res = minreq::delete("http://localhost:6000/store/key1").send();
     assert!(res.is_ok());
@@ -82,7 +71,7 @@ fn test_remove_query_params() {
     assert!(res.is_ok());
     let res = res.unwrap();
     assert_eq!(res.status_code, 200);
-    assert_eq!(res.get_body(), "val2");
+    assert_eq!(res.body, "val2");
 
     let res = minreq::delete("http://localhost:6000/store/key2?q=v").send();
     assert!(res.is_ok());
