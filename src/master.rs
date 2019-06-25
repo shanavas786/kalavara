@@ -112,14 +112,16 @@ impl Service for Master {
     }
 
     fn save(&self, key: String, _value: impl Read) -> Self::Response {
-        let vlms = self.volumes.read().unwrap();
-
-        if vlms.is_empty() {
+        if self.volumes.read().unwrap().is_empty() {
             ResponseKind::Unavailable
         } else {
-            let volume = self.key_to_volume(&key);
-            match self.db.put(key.as_bytes(), volume.as_bytes()) {
-                Ok(_) => ResponseKind::Redirect(format!("{}/{}", volume, key)),
+            let volume_url = self.key_to_volume(&key);
+            match self.db.put(key.as_bytes(), volume_url.as_bytes()) {
+                Ok(_) => {
+                    // increment count in map
+                    self.increment_count(&volume_url);
+                    ResponseKind::Redirect(format!("{}/{}", volume_url, key))
+                }
                 Err(_) => ResponseKind::ServerError,
             }
         }
@@ -132,6 +134,8 @@ impl Service for Master {
 
                 // delete it from db
                 if self.db.delete(key.as_bytes()).is_ok() {
+                    // decrement count in map
+                    self.decrement_count(&volume_url);
                     ResponseKind::Redirect(format!("{}/{}", volume_url, key))
                 } else {
                     ResponseKind::ServerError
@@ -184,6 +188,23 @@ impl Master {
         }
 
         volume.unwrap().to_owned()
+    }
+
+    /// increment counter for url
+    fn increment_count(&self, url: &str) {
+        let mut volumes_map = self.volumes.write().unwrap();
+
+        if let Some(count) = (*volumes_map).get_mut(url) {
+            *count += 1;
+        }
+    }
+
+    /// decrement counter for url
+    fn decrement_count(&self, url: &str) {
+        let mut volumes_map = self.volumes.write().unwrap();
+        if let Some(count) = (*volumes_map).get_mut(url) {
+            *count -= 1;
+        }
     }
 
     fn dispatch(&self, req: Request) {
