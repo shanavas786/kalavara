@@ -1,3 +1,5 @@
+use tempfile::tempdir;
+
 use kalavara::master::start as master_start;
 use kalavara::volume::start as volume_start;
 
@@ -10,12 +12,21 @@ mod basic;
 static INIT: Once = ONCE_INIT;
 
 fn run() {
+    let master_data_dir = tempdir().unwrap();
+    let volume_data_dir = tempdir().unwrap();
+
     thread::spawn(move || {
-        master_start(6001, "/tmp/master1/", 4, vec![]);
+        master_start(6001, master_data_dir.path().to_str().unwrap(), 4, vec![]);
     });
 
     thread::spawn(move || {
-        volume_start(7001, "/tmp/volume1/".to_string(), 4, None, None);
+        volume_start(
+            7001,
+            volume_data_dir.path().to_str().unwrap().to_owned(),
+            4,
+            None,
+            None,
+        );
     });
 }
 
