@@ -12,13 +12,13 @@
 //!
 
 use rand::{thread_rng, Rng};
-use rocksdb::DB;
+use rocksdb::{IteratorMode, DB};
 
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::io::Read;
 use std::net::SocketAddr;
-use std::str::FromStr;
+use std::str::{self, FromStr};
 use std::sync::{Arc, RwLock};
 use std::thread;
 use tiny_http::{Method, Request, Server};
@@ -165,15 +165,25 @@ impl AdminService for Master {
 impl Master {
     pub fn new(db: DB, volumes: Vec<String>) -> Master {
         // Create HashMap from url list
-        let mut volume_map = HashMap::<String, u32>::new();
+        let mut volumes_map = HashMap::<String, u32>::new();
 
         for url in volumes {
-            volume_map.insert(url, 0);
+            volumes_map.insert(url, 0);
+        }
+
+        // update number of keys in each server from existing db
+        let iter = db.iterator(IteratorMode::Start);
+        for (_, url_bytes) in iter {
+            if let Ok(url_raw) = str::from_utf8(&url_bytes) {
+                println!("found {}", url_raw.to_owned());
+                let count = volumes_map.entry(url_raw.to_owned()).or_default();
+                *count += 1;
+            }
         }
 
         Master {
             db: Arc::new(db),
-            volumes: Arc::new(RwLock::new(volume_map)),
+            volumes: Arc::new(RwLock::new(volumes_map)),
         }
     }
 
@@ -373,5 +383,27 @@ mod test {
         });
 
         assert_eq!(master.volumes.read().unwrap().len(), 3);
+    }
+
+    #[test]
+    fn test_master_counter() {
+        let data_dir = tempdir().unwrap();
+
+        let db = match DB::open_default(data_dir) {
+            Ok(db) => {
+                db.put(b"key1", b"server1").unwrap();
+                db.put(b"key2", b"server1").unwrap();
+                db.put(b"key3", b"server2").unwrap();
+                db.put(b"key4", b"server3").unwrap();
+                db
+            }
+            Err(e) => panic!("failed to open database: {:?}", e),
+        };
+
+        let master = Master::new(db, vec!["server1".to_owned(), "server4".to_owned()]);
+        assert_eq!(master.volumes.read().unwrap()["server1"], 2);
+        assert_eq!(master.volumes.read().unwrap()["server2"], 1);
+        assert_eq!(master.volumes.read().unwrap()["server3"], 1);
+        assert_eq!(master.volumes.read().unwrap()["server4"], 0);
     }
 }
