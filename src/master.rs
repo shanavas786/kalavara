@@ -11,8 +11,7 @@
 //! ```
 //!
 
-use rand::seq::IteratorRandom;
-use rand::thread_rng;
+use rand::{thread_rng, Rng};
 use rocksdb::DB;
 
 use std::collections::hash_map::Entry;
@@ -179,18 +178,45 @@ impl Master {
     }
 
     /// translate key to volume url
-    /// TODO: more intelligent selection
+    /// volume server is selected based on the number of keys it holds.
+    /// Server with lesser number of keys are more likely to get selected.
     fn key_to_volume(&self, _key: &str) -> String {
-        let mut rng = thread_rng();
-        let mut volume = None;
         let volumes_map = self.volumes.read().unwrap();
+        let len = volumes_map.len();
+        let mut vlms = Vec::<&String>::with_capacity(len);
+        let mut counts = Vec::<f32>::with_capacity(len);
 
-        while volume.is_none() {
-            let urls = volumes_map.keys();
-            volume = urls.choose(&mut rng);
+        let mut cumulative_count = 0.0f32;
+        let mut max_count = 0;
+
+        for (key, value) in volumes_map.iter() {
+            vlms.push(key);
+
+            let count = if *value == 0 { 1 } else { *value };
+
+            if count > max_count {
+                max_count = count;
+            }
+
+            cumulative_count += count as f32;
+            counts.push(cumulative_count);
         }
 
-        volume.unwrap().to_owned()
+        // invert-normalize counts
+        for count in counts.iter_mut() {
+            *count = max_count as f32 / *count;
+        }
+
+        let mut rng = thread_rng();
+        let random = rng.gen_range(0.0, max_count as f32);
+
+        for indx in 0..len {
+            if random <= counts[indx] {
+                return (*vlms[indx]).to_string();
+            }
+        }
+
+        vlms[len - 1].to_string()
     }
 
     /// increment counter for url
