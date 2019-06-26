@@ -15,6 +15,7 @@ use rand::seq::IteratorRandom;
 use rand::thread_rng;
 use rocksdb::DB;
 
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::io::Read;
 use std::net::SocketAddr;
@@ -149,13 +150,15 @@ impl Service for Master {
 
 impl AdminService for Master {
     fn add_volume(&self, volume: String) -> ResponseKind {
-        let mut volume_maps = self.volumes.write().unwrap();
+        let mut volumes_map = self.volumes.write().unwrap();
 
-        if (*volume_maps).contains_key(&volume) {
-            ResponseKind::Ok("Skipping duplicate volume server".to_string())
-        } else {
-            (*volume_maps).insert(volume, 0);
-            ResponseKind::Ok("Volume added".to_string())
+        let entry = (*volumes_map).entry(volume);
+        match entry {
+            Entry::Occupied(_) => ResponseKind::Ok("Skipping duplicate volume server".to_string()),
+            Entry::Vacant(e) => {
+                e.insert(0);
+                ResponseKind::Ok("Volume added".to_string())
+            }
         }
     }
 }
@@ -303,8 +306,8 @@ mod test {
             _ => false,
         });
 
-        /// should redirect to the save volume server
-        /// in which the key got stored
+        // should redirect to the save volume server
+        // in which the key got stored
         assert!(match master.get(key.clone()) {
             ResponseKind::Redirect(to) => to == url,
             _ => false,
